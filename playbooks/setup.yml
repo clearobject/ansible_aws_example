@@ -1,0 +1,46 @@
+- hosts: localhost
+  connection: local
+  gather_facts: False
+
+  vars:
+    # EC2_REGION=us-east-1
+    ami_id: ami-650a1672
+    cidr_block: 10.0.0.0/16
+
+  tasks:
+
+    - name: Create an AWS VPC
+      ec2_vpc:
+        cidr_block: "{{ cidr_block }}"
+        resource_tags: { "Environment":"Demo" }
+      register: vpc
+
+    - name: Create a demo subnet
+      ec2_vpc_subnet:
+        state: present
+        vpc_id: "{{ vpc.vpc.id }}"
+        cidr: "{{ cidr_block }}"
+        resource_tags:
+          Name: Demo Subnet
+      register: subnet
+
+    - name: Provision a set of instances
+      ec2:
+        key_name: demo_key
+        instance_type: t2.micro
+        image: "{{ ami_id }}"
+        wait: true
+        exact_count: 3
+        count_tag:
+          Name: Demo
+        instance_tags:
+          Name: Demo
+        vpc_subnet_id: "{{ subnet.subnet.id }}"
+        assign_public_ip: True
+      register: ec2
+
+    - name: Add all instance public IPs to host group
+      add_host:
+        hostname: "{{ item.public_ip }}"
+        groups: ec2hosts
+      with_items: "{{ ec2.instances }}"
