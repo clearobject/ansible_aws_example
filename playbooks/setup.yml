@@ -9,12 +9,15 @@
 
   tasks:
 
+    # Creates a new AWS VPC to place our instances into
     - name: Create an AWS VPC
       ec2_vpc:
         cidr_block: "{{ cidr_block }}"
         resource_tags: { "Environment":"Demo" }
+        internet_gateway: True
       register: vpc
 
+    # Creates a new subnet. Instances will be given an address in this range
     - name: Create a demo subnet
       ec2_vpc_subnet:
         state: present
@@ -24,17 +27,54 @@
           Name: Demo Subnet
       register: subnet
 
+    # Create a new security group that allows HTTP, SSH, and ping
+    - name: Create our ec2 security group
+      local_action:
+        module: ec2_group
+        name: demo
+        description: Ansible demo security group
+        vpc_id: "{{ vpc.vpc.id }}"
+        rules:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+          - proto: icmp
+            from_port: 8 # icmp type, -1 = any type
+            to_port:  -1 # icmp subtype, -1 = any subtype
+            cidr_ip: 0.0.0.0/0
+        rules_egress:
+          - proto: tcp
+            from_port: 80
+            to_port: 80
+            cidr_ip: 0.0.0.0/0
+      run_once: True
+
+    # Add my key as an authorized key on this box
+    - name: Create a keypair with my public key info
+      ec2_key:
+        name: my_key
+        key_material: "{{ item }}"
+      with_file: ~/.ssh/id_rsa.pub
+
+    # Creates exactly 3 "micro" instances tagged as Demo
+    # This module will adjust the instances back down or up to the target count
     - name: Provision a set of instances
       ec2:
-        key_name: demo_key
+        key_name: my_key
         instance_type: t2.micro
         image: "{{ ami_id }}"
         wait: true
         exact_count: 3
+        group: demo
         count_tag:
-          Name: Demo
+          Name: Ansible Demo
         instance_tags:
-          Name: Demo
+          Name: Ansible Demo
         vpc_subnet_id: "{{ subnet.subnet.id }}"
         assign_public_ip: True
       register: ec2

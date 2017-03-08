@@ -2,35 +2,55 @@
   gather_facts: False
 
   tasks:
+
+    # Terminates each instance and waits for them to be removed
     - name: Terminate each instance
       local_action:
         module: ec2
         state: absent
         instance_ids: "{{ ec2_id }}"
+        wait: yes
 
-    # These steps depend on the instances being removed, which is done 10-20
-    # minutes after terminating
+    # Removes my ec2 key pair
+    - name: Remove my key
+      local_action:
+        module: ec2_key
+        name: my_key
+        state: absent
+      run_once: True
 
-    # - name: Get subnet details
-    #   local_action:
-    #     module: ec2_vpc_subnet_facts
-    #     filters:
-    #       subnet-id: "{{ ec2_subnet_id }}"
-    #   register: subnet
-    #   run_once: True
-    #
-    # - name: Remove subnet for demo servers
-    #   local_action:
-    #     module: ec2_vpc_subnet
-    #     state: absent
-    #     vpc_id: "{{ ec2_vpc_id }}"
-    #     cidr: "{{ subnet.subnets[0].cidr_block }}"
-    #   run_once: True
-    #
-    # - name: Remove Demo VPC
-    #   local_action:
-    #     module: ec2_vpc
-    #     state: absent
-    #     vpc_id: "{{ ec2_vpc_id }}"
-    #     resource_tags:
-    #   run_once: True
+    # Load the VPC subnet details so we can delete it
+    - name: Get subnet details
+      local_action:
+        module: ec2_vpc_subnet_facts
+        filters:
+          subnet-id: "{{ ec2_subnet_id }}"
+      register: subnet
+      run_once: True
+
+    # Remove the subnet previously allocated
+    - name: Remove subnet for demo servers
+      local_action:
+        module: ec2_vpc_subnet
+        state: absent
+        vpc_id: "{{ ec2_vpc_id }}"
+        cidr: "{{ subnet.subnets[0].cidr_block }}"
+      run_once: True
+      when: subnet.subnets
+
+    - name: Remove our ec2 security group
+      local_action:
+        module: ec2_group
+        name: demo
+        state: absent
+        description:
+      run_once: True
+
+    # Remove our demo VPC
+    - name: Remove Demo VPC
+      local_action:
+        module: ec2_vpc
+        state: absent
+        vpc_id: "{{ ec2_vpc_id }}"
+        resource_tags:
+      run_once: True
