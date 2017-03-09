@@ -12,8 +12,40 @@
         instance_ids: "{{ ec2_id }}"
         wait: yes
 
+    # Find the AMI we created
+    - name: Grab details for the demo_ami
+      local_action:
+        module: ec2_ami_find
+        name: demo_ami
+      register: ami_find
+
+    # # Destory the AMI we create
+    - name: Destroy any the ami we created
+      local_action:
+        module: ec2_ami
+        image_id: "{{ ami_find.results[0].ami_id }}"
+        state: absent
+      when: ami_find.results
+
+    # Load snapshot information
+    - name: Grab snapshot facts for each instance
+      local_action:
+        module: ec2_snapshot_facts
+        filters:
+          description: example snapshot
+      register: snapshot_facts
+      run_once: True
+
+    # Clean up all of our snapshots we created
+    - name: Delete snapshots
+      local_action:
+        module: ec2_snapshot
+        snapshot_id: "{{ item.snapshot_id }}"
+        state: absent
+      with_items: "{{ snapshot_facts.snapshots }}"
+
     # Take down our load balancer
-    - name: Create a new load balancer for our demo
+    - name: Delete the load balancer
       local_action:
         module: ec2_elb_lb
         name: demo-lb
@@ -46,6 +78,7 @@
       run_once: True
       when: subnet.subnets
 
+    # Remove the EC2 security group
     - name: Remove our ec2 security group
       local_action:
         module: ec2_group

@@ -1,0 +1,11 @@
+---
+- hosts: all
+  gather_facts: False
+
+  tasks:
+    - name: Create snapshot of each disk
+      local_action:
+        module: ec2_snapshot
+        volume_id: "{{ item.value }}"
+        description: example snapshot
+      with_dict: "{{ ec2_block_devices }}"

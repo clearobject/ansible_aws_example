@@ -1,0 +1,14 @@
+---
+- hosts: all
+  gather_facts: False
+
+  tasks:
+    - name: Create an ami from {{ inventory_hostname }}
+      local_action:
+        module: ec2_ami
+        instance_id: "{{ ec2_id }}"
+        wait: yes
+        name: demo_ami
+        tags:
+          Name: demo_ami
+          Service: Demo
