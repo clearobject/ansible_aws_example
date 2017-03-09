@@ -25,7 +25,7 @@ Executing a Playbook
 ===
 
 ```
-ansible-playbook -i inventory/gce.py playbooks/<playbook_name>
+ansible-playbook -i inventory/ec2.py playbooks/<playbook_name>
 ```
 
 Available Playbooks
