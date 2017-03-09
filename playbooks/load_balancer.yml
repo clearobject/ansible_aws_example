@@ -1,0 +1,27 @@
+---
+- hosts: all
+  gather_facts: False
+
+  tasks:
+    - name: Create a new load balancer for our demo
+      local_action:
+        module: ec2_elb_lb
+        name: demo-lb
+        state: present
+        security_group_names:
+          - demo
+        subnets:
+          - "{{ ec2_subnet_id }}"
+        listeners:
+          - protocol: http
+            load_balancer_port: 80
+            instance_port: 80
+      register: elb
+      run_once: True
+
+    - name: Register Instances
+      local_action:
+        module: ec2_elb
+        instance_id: "{{ ec2_id }}"
+        ec2_elbs: demo-lb
+        state: present
