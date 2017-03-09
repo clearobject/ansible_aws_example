@@ -1,3 +1,4 @@
+---
 - hosts: localhost
   connection: local
   gather_facts: False
@@ -15,17 +16,15 @@
         cidr_block: "{{ cidr_block }}"
         resource_tags: { "Environment":"Demo" }
         internet_gateway: True
+        subnets:
+          - cidr: "{{ cidr_block }}"
+        route_tables:
+          - subnets:
+              - "{{ cidr_block }}"
+            routes:
+              - dest: 0.0.0.0/0
+                gw: igw
       register: vpc
-
-    # Creates a new subnet. Instances will be given an address in this range
-    - name: Create a demo subnet
-      ec2_vpc_subnet:
-        state: present
-        vpc_id: "{{ vpc.vpc.id }}"
-        cidr: "{{ cidr_block }}"
-        resource_tags:
-          Name: Demo Subnet
-      register: subnet
 
     # Create a new security group that allows HTTP, SSH, and ping
     - name: Create our ec2 security group
@@ -46,11 +45,6 @@
           - proto: icmp
             from_port: 8 # icmp type, -1 = any type
             to_port:  -1 # icmp subtype, -1 = any subtype
-            cidr_ip: 0.0.0.0/0
-        rules_egress:
-          - proto: tcp
-            from_port: 80
-            to_port: 80
             cidr_ip: 0.0.0.0/0
       run_once: True
 
@@ -75,7 +69,7 @@
           Name: Ansible Demo
         instance_tags:
           Name: Ansible Demo
-        vpc_subnet_id: "{{ subnet.subnet.id }}"
+        vpc_subnet_id: "{{ vpc.subnets[0].id }}"
         assign_public_ip: True
       register: ec2
 

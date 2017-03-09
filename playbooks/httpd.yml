@@ -1,0 +1,41 @@
+---
+- hosts: all
+  become: yes
+  become_method: sudo
+
+  roles:
+    # https://galaxy.ansible.com/officel/httpd/
+    - role: officel.httpd
+
+  tasks:
+    - name: Tag this server as an HTTP server
+      ec2_tag:
+        resource: "{{ ec2_id }}"
+        tags:
+          Name: http-server
+          env: dev
+        state: present
+      delegate_to: localhost
+      become: no
+
+    - name: Apache | get current iptables rules
+      shell: iptables -L
+      register: iptablesrules
+      changed_when: false
+
+    - name: Apache | hack in apache iptable rule
+      shell: >
+        iptables -I INPUT 1 -p tcp --dport http -j ACCEPT
+        -m comment --comment "Apache"
+      sudo: true
+      when: iptablesrules.stdout.find("Apache") == -1
+
+    - name: Add our custom welcome page
+      template:
+        src: ../templates/index.html.j2
+        dest: /var/www/html/index.html
+
+    - name: Restart httpd
+      service:
+        name: httpd
+        state: restarted

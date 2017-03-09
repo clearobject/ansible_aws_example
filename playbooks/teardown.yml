@@ -1,3 +1,4 @@
+---
 - hosts: all
   gather_facts: False
 
@@ -44,13 +45,4 @@
         name: demo
         state: absent
         description:
-      run_once: True
-
-    # Remove our demo VPC
-    - name: Remove Demo VPC
-      local_action:
-        module: ec2_vpc
-        state: absent
-        vpc_id: "{{ ec2_vpc_id }}"
-        resource_tags:
       run_once: True
